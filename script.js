@@ -1,1174 +1,345 @@
 /* =========================================================
    JAY PATHARKAR — PREMIUM VIDEO PORTFOLIO
+   Optimized playback — same design / same interactions
 ========================================================= */
 
 document.addEventListener("DOMContentLoaded", () => {
 
-
   /* =====================================================
      CUSTOM CURSOR
   ===================================================== */
-
-  const cursor =
-    document.querySelector(".cursor");
-
-  const cursorDot =
-    document.querySelector(".cursor-dot");
-
+  const cursor = document.querySelector(".cursor");
+  const cursorDot = document.querySelector(".cursor-dot");
 
   if (cursor && cursorDot) {
+    let mouseX = 0;
+    let mouseY = 0;
+    let raf = 0;
 
-    document.addEventListener(
-      "mousemove",
-      (e) => {
+    document.addEventListener("mousemove", (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
 
-        cursor.style.left =
-          `${e.clientX}px`;
-
-        cursor.style.top =
-          `${e.clientY}px`;
-
-
-        cursorDot.style.left =
-          `${e.clientX}px`;
-
-        cursorDot.style.top =
-          `${e.clientY}px`;
-
-      }
-    );
-
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        cursor.style.left = `${mouseX}px`;
+        cursor.style.top = `${mouseY}px`;
+        cursorDot.style.left = `${mouseX}px`;
+        cursorDot.style.top = `${mouseY}px`;
+        raf = 0;
+      });
+    }, { passive: true });
   }
-
-
 
   /* =====================================================
      HERO BACKGROUND VIDEOS
+     Only ONE hero video plays at a time.
   ===================================================== */
+  const heroVideos = document.querySelectorAll(".bg-video");
+  const styleSections = document.querySelectorAll("[data-bg-target]");
 
-  const heroVideos =
-    document.querySelectorAll(
-      ".bg-video"
-    );
-
-
-  const styleSections =
-    document.querySelectorAll(
-      "[data-bg-target]"
-    );
-
+  let activeHero = document.querySelector(".bg-video.active") || heroVideos[0];
 
   function activateHeroVideo(target) {
+    if (!heroVideos.length) return;
 
     heroVideos.forEach(video => {
+      const shouldPlay = video.dataset.bg === target;
 
-      if (
-        video.dataset.bg === target
-      ) {
-
-        video.classList.add(
-          "active"
-        );
-
+      if (shouldPlay) {
+        activeHero = video;
+        video.classList.add("active");
+        video.muted = true;
         video.play().catch(() => {});
-
       } else {
-
-        video.classList.remove(
-          "active"
-        );
-
+        video.classList.remove("active");
         video.pause();
-
       }
-
     });
-
   }
 
+  // Start only the first visible hero video.
+  if (activeHero) {
+    heroVideos.forEach(video => {
+      if (video !== activeHero) {
+        video.pause();
+        video.classList.remove("active");
+      }
+    });
+    activeHero.muted = true;
+    activeHero.play().catch(() => {});
+  }
 
   styleSections.forEach(section => {
-
-    section.addEventListener(
-      "mouseenter",
-      () => {
-
-        const target =
-          section.dataset.bgTarget;
-
-        if (target) {
-
-          activateHeroVideo(
-            target
-          );
-
-        }
-
-      }
-    );
-
+    section.addEventListener("mouseenter", () => {
+      const target = section.dataset.bgTarget;
+      if (target) activateHeroVideo(target);
+    }, { passive: true });
   });
-
-
 
   /* =====================================================
      ALL PORTFOLIO VIDEOS
   ===================================================== */
-
-  const portfolioVideos =
-    document.querySelectorAll(
-      ".video-card video, " +
-      ".character-media video"
-    );
-
+  const portfolioVideos = Array.from(
+    document.querySelectorAll(".video-card video, .character-media video")
+  );
 
   let audioUnlocked = false;
-
-
-
-  /* =====================================================
-     USER INTERACTION
-  ===================================================== */
+  const isTouchDevice = window.matchMedia("(hover: none), (pointer: coarse)").matches;
 
   function unlockAudio() {
-
     audioUnlocked = true;
-
-    document.removeEventListener(
-      "click",
-      unlockAudio
-    );
-
-    document.removeEventListener(
-      "keydown",
-      unlockAudio
-    );
-
-    document.removeEventListener(
-      "touchstart",
-      unlockAudio
-    );
-
+    document.removeEventListener("click", unlockAudio);
+    document.removeEventListener("keydown", unlockAudio);
+    document.removeEventListener("touchstart", unlockAudio);
   }
 
-
-  document.addEventListener(
-    "click",
-    unlockAudio
-  );
-
-  document.addEventListener(
-    "keydown",
-    unlockAudio
-  );
-
-  document.addEventListener(
-    "touchstart",
-    unlockAudio
-  );
-
-
-
-  /* =====================================================
-     FIND VIDEO CARD
-  ===================================================== */
+  document.addEventListener("click", unlockAudio, { once: true, passive: true });
+  document.addEventListener("keydown", unlockAudio, { once: true, passive: true });
+  document.addEventListener("touchstart", unlockAudio, { once: true, passive: true });
 
   function getContainer(video) {
-
-    return video.closest(
-      ".video-card, .character-media"
-    );
-
+    return video.closest(".video-card, .character-media");
   }
-
-
-
-  /* =====================================================
-     PLAY / PAUSE ICON
-  ===================================================== */
 
   function updatePlayIcon(video) {
-
-    const container =
-      getContainer(video);
-
+    const container = getContainer(video);
     if (!container) return;
 
+    const playButton = container.querySelector(".play-btn");
+    if (!playButton) return;
 
-    const button =
-      container.querySelector(
-        ".play-btn"
-      );
+    const playing = !video.paused;
+    playButton.classList.toggle("playing", playing);
+    playButton.setAttribute("aria-label", playing ? "Pause video" : "Play video");
+  }
 
-    if (!button) return;
-
-
-    if (video.paused) {
-
-      button.classList.remove(
-        "playing"
-      );
-
-      button.setAttribute(
-        "aria-label",
-        "Play video"
-      );
-
-    } else {
-
-      button.classList.add(
-        "playing"
-      );
-
-      button.setAttribute(
-        "aria-label",
-        "Pause video"
-      );
-
+  function resetSound(video) {
+    video.muted = true;
+    const container = getContainer(video);
+    const soundButton = container?.querySelector(".sound-btn");
+    if (soundButton) {
+      soundButton.textContent = "🔇";
+      soundButton.setAttribute("aria-label", "Enable sound");
     }
-
   }
 
-
-
-  /* =====================================================
-     UPDATE SOUND ICON
-  ===================================================== */
-
-  function updateSoundIcon(video) {
-
-    const container =
-      getContainer(video);
-
-    if (!container) return;
-
-
-    const soundButton =
-      container.querySelector(
-        ".sound-btn"
-      );
-
-    if (!soundButton) return;
-
-
-    soundButton.textContent =
-      video.muted
-        ? "🔇"
-        : "🔊";
-
-  }
-
-
-
-  /* =====================================================
-     STOP OTHER VIDEOS
-  ===================================================== */
-
-  function stopOtherVideos(
-    currentVideo
-  ) {
-
-    portfolioVideos.forEach(
-      video => {
-
-        if (
-          video !== currentVideo
-        ) {
-
-          video.pause();
-
-          video.muted = true;
-
-          updatePlayIcon(
-            video
-          );
-
-          updateSoundIcon(
-            video
-          );
-
-        }
-
+  function stopOtherVideos(currentVideo) {
+    portfolioVideos.forEach(video => {
+      if (video !== currentVideo && !video.paused) {
+        video.pause();
+        resetSound(video);
+        updatePlayIcon(video);
       }
-    );
-
+    });
   }
 
-
-
-  /* =====================================================
-     PLAY VIDEO
-  ===================================================== */
-
-  async function playVideo(
-    video,
-    withSound = false
-  ) {
-
+  async function playVideo(video, withSound = false) {
     stopOtherVideos(video);
 
-
-    /*
-      Desktop hover:
-
-      After the user has interacted
-      with the page, attempt original audio.
-    */
-
-    if (
-      withSound &&
-      audioUnlocked
-    ) {
-
-      video.muted = false;
-
-    } else {
-
-      video.muted = true;
-
-    }
-
+    video.muted = !(withSound && audioUnlocked);
 
     try {
-
       await video.play();
-
     } catch (error) {
-
-      /*
-        Browser may block autoplay
-        with sound.
-
-        Fall back to muted.
-      */
-
+      // Browser autoplay policy fallback.
       video.muted = true;
-
       try {
-
         await video.play();
-
       } catch (e) {
-
-        console.log(
-          "Unable to play video."
-        );
-
+        return;
       }
-
     }
-
 
     updatePlayIcon(video);
-
-    updateSoundIcon(video);
-
   }
 
-
-
   /* =====================================================
-     PORTFOLIO VIDEO EVENTS
+     VIDEO EVENTS
   ===================================================== */
-
-  portfolioVideos.forEach(
-    video => {
-
-      const container =
-        getContainer(video);
-
-      if (!container) return;
-
-
-      const playButton =
-        container.querySelector(
-          ".play-btn"
-        );
-
-
-      const soundButton =
-        container.querySelector(
-          ".sound-btn"
-        );
-
-
-      /*
-        Initial state
-      */
-
-      video.muted = true;
-
-      updatePlayIcon(video);
-
-      updateSoundIcon(video);
-
-
-
-      /* =================================================
-         VIDEO EVENTS
-      ================================================= */
-
-      video.addEventListener(
-        "play",
-        () => {
-
-          updatePlayIcon(video);
-
-        }
-      );
-
-
-      video.addEventListener(
-        "pause",
-        () => {
-
-          updatePlayIcon(video);
-
-        }
-      );
-
-
-
-      /* =================================================
-         DESKTOP HOVER ENTER
-
-         Cursor enters video:
-         → video plays
-         → original audio attempted
-      ================================================= */
-
-      container.addEventListener(
-        "mouseenter",
-        async () => {
-
-          await playVideo(
-            video,
-            true
-          );
-
-        }
-      );
-
-
-
-      /* =================================================
-         DESKTOP HOVER LEAVE
-
-         Cursor leaves:
-         → video pauses
-         → sound stops
-      ================================================= */
-
-      container.addEventListener(
-        "mouseleave",
-        () => {
-
-          video.pause();
-
-          video.muted = true;
-
-          updatePlayIcon(
-            video
-          );
-
-          updateSoundIcon(
-            video
-          );
-
-        }
-      );
-
-
-
-      /* =================================================
-         PLAY / PAUSE BUTTON
-      ================================================= */
-
-      if (playButton) {
-
-        playButton.addEventListener(
-          "click",
-          async (e) => {
-
-            e.stopPropagation();
-
-            audioUnlocked = true;
-
-
-            if (
-              video.paused
-            ) {
-
-              await playVideo(
-                video,
-                true
-              );
-
-            } else {
-
-              video.pause();
-
-              video.muted = true;
-
-              updatePlayIcon(
-                video
-              );
-
-              updateSoundIcon(
-                video
-              );
-
-            }
-
-          }
-        );
-
-      }
-
-
-
-      /* =================================================
-         SOUND BUTTON
-      ================================================= */
-
-      if (soundButton) {
-
-        soundButton.addEventListener(
-          "click",
-          async (e) => {
-
-            e.stopPropagation();
-
-            audioUnlocked = true;
-
-
-            if (
-              video.paused
-            ) {
-
-              await playVideo(
-                video,
-                true
-              );
-
-            } else {
-
-              video.muted =
-                !video.muted;
-
-              updateSoundIcon(
-                video
-              );
-
-            }
-
-          }
-        );
-
-      }
-
-
-
-      /* =================================================
-         MOBILE TOUCH
-      ================================================= */
-
-      container.addEventListener(
-        "touchstart",
-        async () => {
-
-          audioUnlocked = true;
-
-
-          if (
-            video.paused
-          ) {
-
-            await playVideo(
-              video,
-              true
-            );
-
-          } else {
-
-            video.pause();
-
-            video.muted = true;
-
-            updatePlayIcon(
-              video
-            );
-
-            updateSoundIcon(
-              video
-            );
-
-          }
-
-        },
-        {
-          passive: true
-        }
-      );
-
+  portfolioVideos.forEach(video => {
+    const container = getContainer(video);
+    if (!container) return;
+
+    const playButton = container.querySelector(".play-btn");
+    const soundButton = container.querySelector(".sound-btn");
+
+    video.muted = true;
+    video.preload = "metadata";
+    updatePlayIcon(video);
+
+    video.addEventListener("play", () => updatePlayIcon(video), { passive: true });
+    video.addEventListener("pause", () => updatePlayIcon(video), { passive: true });
+    video.addEventListener("ended", () => updatePlayIcon(video), { passive: true });
+
+    // Desktop: hover = play + original audio when the browser permits it.
+    if (!isTouchDevice) {
+      container.addEventListener("mouseenter", () => {
+        playVideo(video, true);
+      }, { passive: true });
+
+      container.addEventListener("mouseleave", () => {
+        video.pause();
+        resetSound(video);
+        updatePlayIcon(video);
+      }, { passive: true });
     }
-  );
 
+    // Play/pause button works on both desktop and mobile.
+    if (playButton) {
+      playButton.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        audioUnlocked = true;
 
+        if (video.paused) {
+          await playVideo(video, true);
+        } else {
+          video.pause();
+          resetSound(video);
+          updatePlayIcon(video);
+        }
+      });
+    }
+
+    // Sound button.
+    if (soundButton) {
+      soundButton.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        audioUnlocked = true;
+
+        if (video.paused) {
+          await playVideo(video, true);
+        } else {
+          video.muted = !video.muted;
+        }
+
+        soundButton.textContent = video.muted ? "🔇" : "🔊";
+        soundButton.setAttribute(
+          "aria-label",
+          video.muted ? "Enable sound" : "Mute video"
+        );
+      });
+    }
+
+    // Mobile: tapping the video itself toggles play/pause.
+    // Button taps are excluded so they don't double-toggle.
+    if (isTouchDevice) {
+      container.addEventListener("click", async (e) => {
+        if (e.target.closest("button")) return;
+
+        audioUnlocked = true;
+
+        if (video.paused) {
+          await playVideo(video, true);
+        } else {
+          video.pause();
+          resetSound(video);
+          updatePlayIcon(video);
+        }
+      });
+    }
+  });
 
   /* =====================================================
      PAGE VISIBILITY
   ===================================================== */
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      portfolioVideos.forEach(video => {
+        video.pause();
+        resetSound(video);
+        updatePlayIcon(video);
+      });
 
-  document.addEventListener(
-    "visibilitychange",
-    () => {
-
-      if (
-        document.hidden
-      ) {
-
-        portfolioVideos.forEach(
-          video => {
-
-            video.pause();
-
-            video.muted = true;
-
-            updatePlayIcon(
-              video
-            );
-
-            updateSoundIcon(
-              video
-            );
-
-          }
-        );
-
-      }
-
+      heroVideos.forEach(video => video.pause());
+    } else if (activeHero && document.visibilityState === "visible") {
+      activeHero.play().catch(() => {});
     }
-  );
-
-
+  });
 
   /* =====================================================
      INTERSECTION OBSERVER
+     Pause videos that are not actually visible.
   ===================================================== */
+  if ("IntersectionObserver" in window) {
+    const videoObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        const video = entry.target;
 
-  const videoObserver =
-    new IntersectionObserver(
-      entries => {
+        if (!entry.isIntersecting) {
+          video.pause();
+          resetSound(video);
+          updatePlayIcon(video);
+        }
+      });
+    }, {
+      threshold: 0.08,
+      rootMargin: "120px 0px"
+    });
 
-        entries.forEach(
-          entry => {
-
-            const video =
-              entry.target;
-
-
-            if (
-              !entry.isIntersecting
-            ) {
-
-              video.pause();
-
-              video.muted = true;
-
-              updatePlayIcon(
-                video
-              );
-
-              updateSoundIcon(
-                video
-              );
-
-            }
-
-          }
-        );
-
-      },
-      {
-        threshold: 0.15
-      }
-    );
-
-
-  portfolioVideos.forEach(
-    video => {
-
-      videoObserver.observe(
-        video
-      );
-
-    }
-  );
-
-
+    portfolioVideos.forEach(video => videoObserver.observe(video));
+  }
 
   /* =====================================================
      MAGNETIC BUTTON
   ===================================================== */
+  if (!isTouchDevice) {
+    document.querySelectorAll(".magnetic").forEach(button => {
+      button.addEventListener("mousemove", e => {
+        const rect = button.getBoundingClientRect();
+        const x = e.clientX - rect.left - rect.width / 2;
+        const y = e.clientY - rect.top - rect.height / 2;
 
-  const magneticButtons =
-    document.querySelectorAll(
-      ".magnetic"
-    );
+        button.style.transform = `translate(${x * 0.15}px, ${y * 0.15}px)`;
+      }, { passive: true });
 
-
-  magneticButtons.forEach(
-    button => {
-
-      button.addEventListener(
-        "mousemove",
-        e => {
-
-          const rect =
-            button.getBoundingClientRect();
-
-
-          const x =
-            e.clientX -
-            rect.left -
-            rect.width / 2;
-
-
-          const y =
-            e.clientY -
-            rect.top -
-            rect.height / 2;
-
-
-          button.style.transform =
-            `translate(
-              ${x * 0.15}px,
-              ${y * 0.15}px
-            )`;
-
-        }
-      );
-
-
-      button.addEventListener(
-        "mouseleave",
-        () => {
-
-          button.style.transform =
-            "";
-
-        }
-      );
-
-    }
-  );
-
-
+      button.addEventListener("mouseleave", () => {
+        button.style.transform = "";
+      }, { passive: true });
+    });
+  }
 
   /* =====================================================
      REVEAL ANIMATION
   ===================================================== */
+  const revealElements = document.querySelectorAll(".reveal, .style-section");
 
-  const revealElements =
-    document.querySelectorAll(
-      ".reveal, .style-section"
-    );
-
-
-  const revealObserver =
-    new IntersectionObserver(
-      entries => {
-
-        entries.forEach(
-          entry => {
-
-            if (
-              entry.isIntersecting
-            ) {
-
-              entry.target.classList.add(
-                "show"
-              );
-
-            }
-
-          }
-        );
-
-      },
-      {
-        threshold: 0.08
-      }
-    );
-
-
-  revealElements.forEach(
-    element => {
-
-      revealObserver.observe(
-        element
-      );
-
-    }
-  );
-
-
-
-  /* =====================================================
-     CAROUSELS
-  ===================================================== */
-
-  const carouselCards =
-    document.querySelectorAll(
-      ".carousel-card"
-    );
-
-
-  carouselCards.forEach(
-    card => {
-
-      const track =
-        card.querySelector(
-          ".carousel-track"
-        );
-
-
-      const slides =
-        card.querySelectorAll(
-          ".carousel-track img"
-        );
-
-
-      const previous =
-        card.querySelector(
-          ".carousel-prev"
-        );
-
-
-      const next =
-        card.querySelector(
-          ".carousel-next"
-        );
-
-
-      const dotsContainer =
-        card.querySelector(
-          ".carousel-dots"
-        );
-
-
-      if (
-        !track ||
-        slides.length === 0
-      ) {
-        return;
-      }
-
-
-      let currentSlide = 0;
-
-
-      /* -----------------------------------------------
-         CREATE DOTS
-      ----------------------------------------------- */
-
-      slides.forEach(
-        (_, index) => {
-
-          const dot =
-            document.createElement(
-              "span"
-            );
-
-          dot.className =
-            "carousel-dot";
-
-
-          if (
-            index === 0
-          ) {
-
-            dot.classList.add(
-              "active"
-            );
-
-          }
-
-
-          dot.addEventListener(
-            "click",
-            e => {
-
-              e.stopPropagation();
-
-              currentSlide =
-                index;
-
-              updateCarousel();
-
-            }
-          );
-
-
-          dotsContainer.appendChild(
-            dot
-          );
-
+  if ("IntersectionObserver" in window) {
+    const revealObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("show");
+          revealObserver.unobserve(entry.target);
         }
-      );
-
-
-      const dots =
-        dotsContainer.querySelectorAll(
-          ".carousel-dot"
-        );
-
-
-
-      /* -----------------------------------------------
-         UPDATE CAROUSEL
-      ----------------------------------------------- */
-
-      function updateCarousel() {
-
-        track.style.transform =
-          `translateX(
-            -${currentSlide * 100}%
-          )`;
-
-
-        dots.forEach(
-          (dot, index) => {
-
-            dot.classList.toggle(
-              "active",
-              index === currentSlide
-            );
-
-          }
-        );
-
-      }
-
-
-
-      /* -----------------------------------------------
-         NEXT
-      ----------------------------------------------- */
-
-      next.addEventListener(
-        "click",
-        e => {
-
-          e.stopPropagation();
-
-
-          currentSlide++;
-
-          if (
-            currentSlide >=
-            slides.length
-          ) {
-
-            currentSlide = 0;
-
-          }
-
-
-          updateCarousel();
-
-        }
-      );
-
-
-
-      /* -----------------------------------------------
-         PREVIOUS
-      ----------------------------------------------- */
-
-      previous.addEventListener(
-        "click",
-        e => {
-
-          e.stopPropagation();
-
-
-          currentSlide--;
-
-          if (
-            currentSlide < 0
-          ) {
-
-            currentSlide =
-              slides.length - 1;
-
-          }
-
-
-          updateCarousel();
-
-        }
-      );
-
-
-
-      /* -----------------------------------------------
-         TOUCH SWIPE
-      ----------------------------------------------- */
-
-      let touchStartX = 0;
-
-      let touchEndX = 0;
-
-
-      card.addEventListener(
-        "touchstart",
-        e => {
-
-          touchStartX =
-            e.changedTouches[0].screenX;
-
-        },
-        {
-          passive: true
-        }
-      );
-
-
-      card.addEventListener(
-        "touchend",
-        e => {
-
-          touchEndX =
-            e.changedTouches[0].screenX;
-
-
-          const distance =
-            touchEndX -
-            touchStartX;
-
-
-          if (
-            Math.abs(distance) < 40
-          ) {
-
-            return;
-
-          }
-
-
-          if (
-            distance < 0
-          ) {
-
-            currentSlide++;
-
-            if (
-              currentSlide >=
-              slides.length
-            ) {
-
-              currentSlide = 0;
-
-            }
-
-          } else {
-
-            currentSlide--;
-
-            if (
-              currentSlide < 0
-            ) {
-
-              currentSlide =
-                slides.length - 1;
-
-            }
-
-          }
-
-
-          updateCarousel();
-
-        },
-        {
-          passive: true
-        }
-      );
-
-
-      /* -----------------------------------------------
-         INITIAL STATE
-      ----------------------------------------------- */
-
-      updateCarousel();
-
-    }
-  );
-
-
+      });
+    }, { threshold: 0.08 });
+
+    revealElements.forEach(element => revealObserver.observe(element));
+  } else {
+    revealElements.forEach(element => element.classList.add("show"));
+  }
 
   /* =====================================================
      HOVER CARD STATE
   ===================================================== */
-
-  const cards =
-    document.querySelectorAll(
-      ".video-card, .character-card, .carousel-card"
-    );
-
-
-  cards.forEach(
-    card => {
-
-      card.addEventListener(
-        "mouseenter",
-        () => {
-
-          card.classList.add(
-            "is-hovered"
-          );
-
-        }
-      );
-
-
-      card.addEventListener(
-        "mouseleave",
-        () => {
-
-          card.classList.remove(
-            "is-hovered"
-          );
-
-        }
-      );
-
-    }
-  );
-
-
+  if (!isTouchDevice) {
+    document.querySelectorAll(".video-card, .character-card").forEach(card => {
+      card.addEventListener("mouseenter", () => card.classList.add("is-hovered"), { passive: true });
+      card.addEventListener("mouseleave", () => card.classList.remove("is-hovered"), { passive: true });
+    });
+  }
 
   /* =====================================================
      STOP VIDEOS BEFORE PAGE CLOSE
   ===================================================== */
-
-  window.addEventListener(
-    "beforeunload",
-    () => {
-
-      portfolioVideos.forEach(
-        video => {
-
-          video.pause();
-
-          video.muted = true;
-
-        }
-      );
-
-    }
-  );
+  window.addEventListener("pagehide", () => {
+    portfolioVideos.forEach(video => {
+      video.pause();
+      video.muted = true;
+    });
+    heroVideos.forEach(video => video.pause());
+  }, { passive: true });
 
 });

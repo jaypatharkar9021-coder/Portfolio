@@ -1836,3 +1836,88 @@ footer {
   }
 
 }
+
+/* =========================================================
+   PERFORMANCE + DEVICE FRIENDLY PATCH
+   Keeps the existing design unchanged.
+========================================================= */
+video {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cinematic-video video,
+.character-media video,
+.video-card video {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0) scale(1.01);
+  will-change: transform;
+}
+
+/* Transparent controls: they never cover/block the footage. */
+.play-btn,
+.sound-btn {
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .cinematic-video:hover,
+  .character-card:hover,
+  .video-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .cinematic-video:hover video,
+  .character-media:hover video,
+  .video-card:hover video {
+    transform: translateZ(0) scale(1.01);
+  }
+
+  .play-btn,
+  .sound-btn {
+    touch-action: manipulation;
+  }
+}
+
+@media (max-width: 600px) {
+  .styles,
+  .about,
+  .contact {
+    overflow: hidden;
+  }
+
+  .cinematic-grid,
+  .character-grid,
+  .video-grid,
+  .carousel-grid {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .cinematic-video,
+  .character-media,
+  .video-card {
+    max-width: 100%;
+  }
+
+  .hero-title {
+    word-break: normal;
+  }
+
+  .socials {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
