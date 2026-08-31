@@ -135,6 +135,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function playVideo(video, withSound = false) {
+    prepareVideo(video);
     stopOtherVideos(video);
 
     video.muted = !(withSound && audioUnlocked);
@@ -155,6 +156,36 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* =====================================================
+     VIDEO PREVIEW LOADING
+     The video itself provides the preview frame — no extra
+     thumbnail files are used. Only load a card when it gets
+     close to the viewport to reduce mobile lag.
+  ===================================================== */
+  function prepareVideo(video) {
+    if (!video || video.dataset.previewReady === "1") return;
+    video.dataset.previewReady = "1";
+    video.preload = "metadata";
+    try {
+      video.load();
+    } catch (e) {}
+  }
+
+  if ("IntersectionObserver" in window) {
+    const previewObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          prepareVideo(entry.target);
+          previewObserver.unobserve(entry.target);
+        }
+      });
+    }, { rootMargin: "500px 0px", threshold: 0.01 });
+
+    portfolioVideos.forEach(video => previewObserver.observe(video));
+  } else {
+    portfolioVideos.forEach(prepareVideo);
+  }
+
+  /* =====================================================
      VIDEO EVENTS
   ===================================================== */
   portfolioVideos.forEach(video => {
@@ -171,6 +202,22 @@ document.addEventListener("DOMContentLoaded", () => {
     video.addEventListener("play", () => updatePlayIcon(video), { passive: true });
     video.addEventListener("pause", () => updatePlayIcon(video), { passive: true });
     video.addEventListener("ended", () => updatePlayIcon(video), { passive: true });
+
+    // Make the first decoded video frame available as the preview.
+    video.addEventListener("loadeddata", () => {
+      video.classList.add("preview-ready");
+    }, { once: true, passive: true });
+
+    // If a video fails to load, retry once after forcing a fresh request.
+    video.addEventListener("error", () => {
+      if (video.dataset.retry === "1") return;
+      video.dataset.retry = "1";
+      setTimeout(() => {
+        try {
+          video.load();
+        } catch (e) {}
+      }, 300);
+    }, { passive: true });
 
     // Desktop: hover = play + original audio when the browser permits it.
     if (!isTouchDevice) {
