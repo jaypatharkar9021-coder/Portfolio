@@ -1,392 +1,1185 @@
 /* =========================================================
-   JAY PATHARKAR — PREMIUM VIDEO PORTFOLIO
-   Optimized playback — same design / same interactions
+   JAY PATHARKAR — VIDEO EDITOR PORTFOLIO
+   PERFORMANCE + VIDEO HOVER + CAROUSEL
 ========================================================= */
 
 document.addEventListener("DOMContentLoaded", () => {
 
-  /* =====================================================
-     CUSTOM CURSOR
-  ===================================================== */
+  /* =========================================================
+     1. CUSTOM CURSOR
+  ========================================================= */
+
   const cursor = document.querySelector(".cursor");
   const cursorDot = document.querySelector(".cursor-dot");
 
-  if (cursor && cursorDot) {
+  if (cursor && cursorDot && window.matchMedia("(pointer:fine)").matches) {
+
     let mouseX = 0;
     let mouseY = 0;
-    let raf = 0;
+    let cursorX = 0;
+    let cursorY = 0;
 
     document.addEventListener("mousemove", (e) => {
       mouseX = e.clientX;
       mouseY = e.clientY;
+    });
 
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        cursor.style.left = `${mouseX}px`;
-        cursor.style.top = `${mouseY}px`;
-        cursorDot.style.left = `${mouseX}px`;
-        cursorDot.style.top = `${mouseY}px`;
-        raf = 0;
-      });
-    }, { passive: true });
+    function animateCursor() {
+      cursorX += (mouseX - cursorX) * 0.18;
+      cursorY += (mouseY - cursorY) * 0.18;
+
+      cursor.style.left = `${cursorX}px`;
+      cursor.style.top = `${cursorY}px`;
+
+      cursorDot.style.left = `${mouseX}px`;
+      cursorDot.style.top = `${mouseY}px`;
+
+      requestAnimationFrame(animateCursor);
+    }
+
+    animateCursor();
   }
 
-  /* =====================================================
-     HERO BACKGROUND VIDEOS
-     Only ONE hero video plays at a time.
-  ===================================================== */
+
+  /* =========================================================
+     2. HERO BACKGROUND VIDEO SWITCHING
+  ========================================================= */
+
   const heroVideos = document.querySelectorAll(".bg-video");
   const styleSections = document.querySelectorAll("[data-bg-target]");
 
-  let activeHero = document.querySelector(".bg-video.active") || heroVideos[0];
-
   function activateHeroVideo(target) {
-    if (!heroVideos.length) return;
 
     heroVideos.forEach(video => {
-      const shouldPlay = video.dataset.bg === target;
 
-      if (shouldPlay) {
-        activeHero = video;
+      if (video.dataset.bg === target) {
+
         video.classList.add("active");
-        video.muted = true;
-        video.play().catch(() => {});
-      } else {
-        video.classList.remove("active");
-        video.pause();
-      }
-    });
-  }
 
-  // Start only the first visible hero video.
-  if (activeHero) {
-    heroVideos.forEach(video => {
-      if (video !== activeHero) {
-        video.pause();
+        if (video.paused) {
+          video.play().catch(() => {});
+        }
+
+      } else {
+
         video.classList.remove("active");
+        video.pause();
+
       }
+
     });
-    activeHero.muted = true;
-    activeHero.play().catch(() => {});
+
   }
 
   styleSections.forEach(section => {
+
     section.addEventListener("mouseenter", () => {
+
       const target = section.dataset.bgTarget;
-      if (target) activateHeroVideo(target);
-    }, { passive: true });
+
+      if (target) {
+        activateHeroVideo(target);
+      }
+
+    });
+
   });
 
-  /* =====================================================
-     ALL PORTFOLIO VIDEOS
-  ===================================================== */
-  const portfolioVideos = Array.from(
-    document.querySelectorAll(".video-card video, .character-media video")
+
+  /* =========================================================
+     3. PORTFOLIO VIDEOS
+     
+     Desktop:
+     HOVER → PLAY
+     LEAVE → PAUSE
+
+     Mobile:
+     TAP → PLAY / PAUSE
+  ========================================================= */
+
+  const portfolioVideos = document.querySelectorAll(
+    ".cinematic-video video, " +
+    ".mini-video video, " +
+    ".video-card video, " +
+    ".feature-video video"
   );
 
   let audioUnlocked = false;
-  const isTouchDevice = window.matchMedia("(hover: none), (pointer: coarse)").matches;
+
+
+  /* =========================================================
+     AUDIO UNLOCK
+  ========================================================= */
 
   function unlockAudio() {
+
     audioUnlocked = true;
+
     document.removeEventListener("click", unlockAudio);
     document.removeEventListener("keydown", unlockAudio);
     document.removeEventListener("touchstart", unlockAudio);
   }
 
-  document.addEventListener("click", unlockAudio, { once: true, passive: true });
-  document.addEventListener("keydown", unlockAudio, { once: true, passive: true });
-  document.addEventListener("touchstart", unlockAudio, { once: true, passive: true });
+  document.addEventListener("click", unlockAudio, {
+    passive: true
+  });
 
-  function getContainer(video) {
-    return video.closest(".video-card, .character-media");
-  }
+  document.addEventListener("keydown", unlockAudio);
 
-  function updatePlayIcon(video) {
-    const container = getContainer(video);
-    if (!container) return;
+  document.addEventListener("touchstart", unlockAudio, {
+    passive: true
+  });
 
-    const playButton = container.querySelector(".play-btn");
-    if (!playButton) return;
 
-    const playing = !video.paused;
-    playButton.classList.toggle("playing", playing);
-    playButton.setAttribute("aria-label", playing ? "Pause video" : "Play video");
-  }
-
-  function resetSound(video) {
-    video.muted = true;
-    const container = getContainer(video);
-    const soundButton = container?.querySelector(".sound-btn");
-    if (soundButton) {
-      soundButton.textContent = "🔇";
-      soundButton.setAttribute("aria-label", "Enable sound");
-    }
-  }
+  /* =========================================================
+     STOP OTHER VIDEOS
+  ========================================================= */
 
   function stopOtherVideos(currentVideo) {
-    portfolioVideos.forEach(video => {
-      if (video !== currentVideo && !video.paused) {
-        video.pause();
-        resetSound(video);
-        updatePlayIcon(video);
+
+    portfolioVideos.forEach(otherVideo => {
+
+      if (otherVideo !== currentVideo) {
+
+        otherVideo.pause();
+        otherVideo.muted = true;
+
+        const otherCard = otherVideo.closest(
+          ".cinematic-video, .mini-video, .video-card, .feature-video"
+        );
+
+        if (otherCard) {
+          otherCard.classList.remove("is-playing");
+
+          const otherPlayBtn =
+            otherCard.querySelector(".play-btn");
+
+          if (otherPlayBtn) {
+            otherPlayBtn.classList.remove("playing");
+          }
+
+          const otherSoundBtn =
+            otherCard.querySelector(".sound-btn");
+
+          if (otherSoundBtn) {
+            otherSoundBtn.textContent = "🔇";
+          }
+        }
       }
+
     });
+
   }
 
-  async function playVideo(video, withSound = false) {
-    prepareVideo(video);
+
+  /* =========================================================
+     PLAY VIDEO
+  ========================================================= */
+
+  async function playVideo(video, card) {
+
     stopOtherVideos(video);
 
-    video.muted = !(withSound && audioUnlocked);
-
     try {
+
+      if (audioUnlocked) {
+        video.muted = false;
+      } else {
+        video.muted = true;
+      }
+
       await video.play();
+
+      card.classList.add("is-playing");
+
+      const playBtn =
+        card.querySelector(".play-btn");
+
+      if (playBtn) {
+        playBtn.classList.add("playing");
+      }
+
+      const soundBtn =
+        card.querySelector(".sound-btn");
+
+      if (soundBtn) {
+        soundBtn.textContent =
+          video.muted ? "🔇" : "🔊";
+      }
+
     } catch (error) {
-      // Browser autoplay policy fallback.
+
+      /*
+        Browser may block autoplay with sound.
+        Retry muted.
+      */
+
       video.muted = true;
+
       try {
+
         await video.play();
+
+        card.classList.add("is-playing");
+
+        const playBtn =
+          card.querySelector(".play-btn");
+
+        if (playBtn) {
+          playBtn.classList.add("playing");
+        }
+
       } catch (e) {
+
+        console.log(
+          "Video could not be played:",
+          video.src
+        );
+
+      }
+
+    }
+
+  }
+
+
+  /* =========================================================
+     PAUSE VIDEO
+  ========================================================= */
+
+  function pauseVideo(video, card) {
+
+    video.pause();
+    video.muted = true;
+
+    card.classList.remove("is-playing");
+
+    const playBtn =
+      card.querySelector(".play-btn");
+
+    if (playBtn) {
+      playBtn.classList.remove("playing");
+    }
+
+    const soundBtn =
+      card.querySelector(".sound-btn");
+
+    if (soundBtn) {
+      soundBtn.textContent = "🔇";
+    }
+
+  }
+
+
+  /* =========================================================
+     SETUP EACH VIDEO
+  ========================================================= */
+
+  portfolioVideos.forEach(video => {
+
+    const card = video.closest(
+      ".cinematic-video, .mini-video, .video-card, .feature-video"
+    );
+
+    if (!card) return;
+
+
+    /* -------------------------------------------------------
+       DESKTOP HOVER
+    ------------------------------------------------------- */
+
+    card.addEventListener("mouseenter", () => {
+
+      if (window.matchMedia("(pointer:fine)").matches) {
+
+        playVideo(video, card);
+
+      }
+
+    });
+
+
+    card.addEventListener("mouseleave", () => {
+
+      if (window.matchMedia("(pointer:fine)").matches) {
+
+        pauseVideo(video, card);
+
+      }
+
+    });
+
+
+    /* -------------------------------------------------------
+       PLAY BUTTON
+    ------------------------------------------------------- */
+
+    const playBtn =
+      card.querySelector(".play-btn");
+
+    if (playBtn) {
+
+      playBtn.addEventListener("click", async (event) => {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        audioUnlocked = true;
+
+        if (video.paused) {
+
+          await playVideo(video, card);
+
+        } else {
+
+          pauseVideo(video, card);
+
+        }
+
+      });
+
+    }
+
+
+    /* -------------------------------------------------------
+       SOUND BUTTON
+    ------------------------------------------------------- */
+
+    const soundBtn =
+      card.querySelector(".sound-btn");
+
+    if (soundBtn) {
+
+      soundBtn.addEventListener("click", async (event) => {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        audioUnlocked = true;
+
+        if (video.paused) {
+
+          await playVideo(video, card);
+
+        }
+
+        video.muted = !video.muted;
+
+        soundBtn.textContent =
+          video.muted ? "🔇" : "🔊";
+
+      });
+
+    }
+
+
+    /* -------------------------------------------------------
+       MOBILE TAP
+    ------------------------------------------------------- */
+
+    let lastTouchTime = 0;
+
+    card.addEventListener("touchend", async (event) => {
+
+      const now = Date.now();
+
+      /*
+        Prevent double firing.
+      */
+
+      if (now - lastTouchTime < 400) {
         return;
       }
-    }
 
-    updatePlayIcon(video);
-  }
+      lastTouchTime = now;
 
-  /* =====================================================
-     VIDEO PREVIEW LOADING
-     The video itself provides the preview frame — no extra
-     thumbnail files are used. Only load a card when it gets
-     close to the viewport to reduce mobile lag.
-  ===================================================== */
-  function prepareVideo(video) {
-    if (!video || video.dataset.previewReady === "1") return;
-    video.dataset.previewReady = "1";
-    video.preload = "metadata";
-    try {
-      video.load();
-    } catch (e) {}
-  }
+      /*
+        Ignore taps on buttons.
+      */
 
-  if ("IntersectionObserver" in window) {
-    const previewObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          prepareVideo(entry.target);
-          previewObserver.unobserve(entry.target);
-        }
-      });
-    }, { rootMargin: "500px 0px", threshold: 0.01 });
+      if (
+        event.target.closest(".play-btn") ||
+        event.target.closest(".sound-btn")
+      ) {
+        return;
+      }
 
-    portfolioVideos.forEach(video => previewObserver.observe(video));
-  } else {
-    portfolioVideos.forEach(prepareVideo);
-  }
+      audioUnlocked = true;
 
-  /* =====================================================
-     VIDEO EVENTS
-  ===================================================== */
-  portfolioVideos.forEach(video => {
-    const container = getContainer(video);
-    if (!container) return;
+      if (video.paused) {
 
-    const playButton = container.querySelector(".play-btn");
-    const soundButton = container.querySelector(".sound-btn");
+        await playVideo(video, card);
 
-    video.muted = true;
-    video.preload = "metadata";
-    updatePlayIcon(video);
+      } else {
 
-    video.addEventListener("play", () => updatePlayIcon(video), { passive: true });
-    video.addEventListener("pause", () => updatePlayIcon(video), { passive: true });
-    video.addEventListener("ended", () => updatePlayIcon(video), { passive: true });
+        pauseVideo(video, card);
 
-    // Make the first decoded video frame available as the preview.
-    video.addEventListener("loadeddata", () => {
-      video.classList.add("preview-ready");
-    }, { once: true, passive: true });
+      }
 
-    // If a video fails to load, retry once after forcing a fresh request.
-    video.addEventListener("error", () => {
-      if (video.dataset.retry === "1") return;
-      video.dataset.retry = "1";
-      setTimeout(() => {
-        try {
-          video.load();
-        } catch (e) {}
-      }, 300);
-    }, { passive: true });
-
-    // Desktop: hover = play + original audio when the browser permits it.
-    if (!isTouchDevice) {
-      container.addEventListener("mouseenter", () => {
-        playVideo(video, true);
-      }, { passive: true });
-
-      container.addEventListener("mouseleave", () => {
-        video.pause();
-        resetSound(video);
-        updatePlayIcon(video);
-      }, { passive: true });
-    }
-
-    // Play/pause button works on both desktop and mobile.
-    if (playButton) {
-      playButton.addEventListener("click", async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        audioUnlocked = true;
-
-        if (video.paused) {
-          await playVideo(video, true);
-        } else {
-          video.pause();
-          resetSound(video);
-          updatePlayIcon(video);
-        }
-      });
-    }
-
-    // Sound button.
-    if (soundButton) {
-      soundButton.addEventListener("click", async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        audioUnlocked = true;
-
-        if (video.paused) {
-          await playVideo(video, true);
-        } else {
-          video.muted = !video.muted;
-        }
-
-        soundButton.textContent = video.muted ? "🔇" : "🔊";
-        soundButton.setAttribute(
-          "aria-label",
-          video.muted ? "Enable sound" : "Mute video"
-        );
-      });
-    }
-
-    // Mobile: tapping the video itself toggles play/pause.
-    // Button taps are excluded so they don't double-toggle.
-    if (isTouchDevice) {
-      container.addEventListener("click", async (e) => {
-        if (e.target.closest("button")) return;
-
-        audioUnlocked = true;
-
-        if (video.paused) {
-          await playVideo(video, true);
-        } else {
-          video.pause();
-          resetSound(video);
-          updatePlayIcon(video);
-        }
-      });
-    }
-  });
-
-  /* =====================================================
-     PAGE VISIBILITY
-  ===================================================== */
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-      portfolioVideos.forEach(video => {
-        video.pause();
-        resetSound(video);
-        updatePlayIcon(video);
-      });
-
-      heroVideos.forEach(video => video.pause());
-    } else if (activeHero && document.visibilityState === "visible") {
-      activeHero.play().catch(() => {});
-    }
-  });
-
-  /* =====================================================
-     INTERSECTION OBSERVER
-     Pause videos that are not actually visible.
-  ===================================================== */
-  if ("IntersectionObserver" in window) {
-    const videoObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        const video = entry.target;
-
-        if (!entry.isIntersecting) {
-          video.pause();
-          resetSound(video);
-          updatePlayIcon(video);
-        }
-      });
     }, {
-      threshold: 0.08,
-      rootMargin: "120px 0px"
+      passive: true
     });
 
-    portfolioVideos.forEach(video => videoObserver.observe(video));
-  }
 
-  /* =====================================================
-     MAGNETIC BUTTON
-  ===================================================== */
-  if (!isTouchDevice) {
-    document.querySelectorAll(".magnetic").forEach(button => {
-      button.addEventListener("mousemove", e => {
-        const rect = button.getBoundingClientRect();
-        const x = e.clientX - rect.left - rect.width / 2;
-        const y = e.clientY - rect.top - rect.height / 2;
+    /* -------------------------------------------------------
+       VIDEO ERROR
+    ------------------------------------------------------- */
 
-        button.style.transform = `translate(${x * 0.15}px, ${y * 0.15}px)`;
-      }, { passive: true });
+    video.addEventListener("error", () => {
 
-      button.addEventListener("mouseleave", () => {
-        button.style.transform = "";
-      }, { passive: true });
+      console.warn(
+        "Video failed to load:",
+        video.getAttribute("src")
+      );
+
     });
-  }
 
-  /* =====================================================
-     REVEAL ANIMATION
-  ===================================================== */
-  const revealElements = document.querySelectorAll(".reveal, .style-section");
+
+    /* -------------------------------------------------------
+       VIDEO CAN PLAY
+    ------------------------------------------------------- */
+
+    video.addEventListener("canplay", () => {
+
+      video.classList.add("video-ready");
+
+    });
+
+  });
+
+
+  /* =========================================================
+     4. VISIBILITY CHANGE
+  ========================================================= */
+
+  document.addEventListener("visibilitychange", () => {
+
+    if (document.hidden) {
+
+      portfolioVideos.forEach(video => {
+
+        video.pause();
+        video.muted = true;
+
+      });
+
+    }
+
+  });
+
+
+  /* =========================================================
+     5. INTERSECTION OBSERVER
+     
+     Pause videos when they are far outside viewport.
+  ========================================================= */
 
   if ("IntersectionObserver" in window) {
-    const revealObserver = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("show");
-          revealObserver.unobserve(entry.target);
+
+    const videoObserver =
+      new IntersectionObserver(
+        entries => {
+
+          entries.forEach(entry => {
+
+            const video = entry.target;
+
+            if (!entry.isIntersecting) {
+
+              video.pause();
+              video.muted = true;
+
+              const card = video.closest(
+                ".cinematic-video, .mini-video, .video-card, .feature-video"
+              );
+
+              if (card) {
+
+                card.classList.remove("is-playing");
+
+                const playBtn =
+                  card.querySelector(".play-btn");
+
+                if (playBtn) {
+                  playBtn.classList.remove("playing");
+                }
+
+              }
+
+            }
+
+          });
+
+        },
+        {
+          rootMargin: "150px",
+          threshold: 0.05
         }
-      });
-    }, { threshold: 0.08 });
+      );
 
-    revealElements.forEach(element => revealObserver.observe(element));
-  } else {
-    revealElements.forEach(element => element.classList.add("show"));
-  }
 
-  /* =====================================================
-     HOVER CARD STATE
-  ===================================================== */
-  if (!isTouchDevice) {
-    document.querySelectorAll(".video-card, .character-card").forEach(card => {
-      card.addEventListener("mouseenter", () => card.classList.add("is-hovered"), { passive: true });
-      card.addEventListener("mouseleave", () => card.classList.remove("is-hovered"), { passive: true });
-    });
-  }
-
-  /* =====================================================
-     STOP VIDEOS BEFORE PAGE CLOSE
-  ===================================================== */
-  window.addEventListener("pagehide", () => {
     portfolioVideos.forEach(video => {
+
+      videoObserver.observe(video);
+
+    });
+
+  }
+
+
+  /* =========================================================
+     6. CAROUSEL
+     
+     WORKS WITH:
+       .carousel-track
+       .carousel-card
+       .carousel-prev
+       .carousel-next
+       .carousel-dot
+  ========================================================= */
+
+  const carouselSections =
+    document.querySelectorAll(".carousel-section");
+
+
+  carouselSections.forEach(section => {
+
+    const track =
+      section.querySelector(".carousel-track");
+
+    const cards =
+      section.querySelectorAll(".carousel-card");
+
+    const prevBtn =
+      section.querySelector(".carousel-prev");
+
+    const nextBtn =
+      section.querySelector(".carousel-next");
+
+    const dots =
+      section.querySelectorAll(".carousel-dot");
+
+
+    if (!track || cards.length === 0) {
+      return;
+    }
+
+
+    let currentIndex = 0;
+
+    let startX = 0;
+    let currentX = 0;
+    let isDragging = false;
+
+    let startTime = 0;
+
+
+    /* =======================================================
+       GET SLIDE WIDTH
+    ======================================================= */
+
+    function getSlideWidth() {
+
+      if (cards.length === 0) {
+        return 0;
+      }
+
+      const card =
+        cards[0];
+
+      const cardWidth =
+        card.getBoundingClientRect().width;
+
+      const styles =
+        window.getComputedStyle(track);
+
+      const gap =
+        parseFloat(styles.gap) || 0;
+
+      return cardWidth + gap;
+
+    }
+
+
+    /* =======================================================
+       UPDATE CAROUSEL
+    ======================================================= */
+
+    function updateCarousel(animate = true) {
+
+      const slideWidth =
+        getSlideWidth();
+
+      if (!slideWidth) {
+        return;
+      }
+
+      track.style.transition =
+        animate
+          ? "transform 0.55s cubic-bezier(.22,.61,.36,1)"
+          : "none";
+
+      track.style.transform =
+        `translate3d(-${currentIndex * slideWidth}px, 0, 0)`;
+
+
+      /* -------------------------------------------------------
+         UPDATE DOTS
+      ------------------------------------------------------- */
+
+      dots.forEach((dot, index) => {
+
+        dot.classList.toggle(
+          "active",
+          index === currentIndex
+        );
+
+      });
+
+
+      /* -------------------------------------------------------
+         BUTTON STATE
+      ------------------------------------------------------- */
+
+      if (prevBtn) {
+        prevBtn.disabled =
+          currentIndex === 0;
+      }
+
+      if (nextBtn) {
+        nextBtn.disabled =
+          currentIndex >= cards.length - 1;
+      }
+
+    }
+
+
+    /* =======================================================
+       NEXT
+    ======================================================= */
+
+    function nextSlide() {
+
+      if (currentIndex < cards.length - 1) {
+
+        currentIndex++;
+
+      } else {
+
+        /*
+          Loop back to first slide.
+        */
+
+        currentIndex = 0;
+
+      }
+
+      updateCarousel();
+
+    }
+
+
+    /* =======================================================
+       PREVIOUS
+    ======================================================= */
+
+    function previousSlide() {
+
+      if (currentIndex > 0) {
+
+        currentIndex--;
+
+      } else {
+
+        /*
+          Loop to last slide.
+        */
+
+        currentIndex = cards.length - 1;
+
+      }
+
+      updateCarousel();
+
+    }
+
+
+    /* =======================================================
+       BUTTONS
+    ======================================================= */
+
+    if (nextBtn) {
+
+      nextBtn.addEventListener("click", event => {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        nextSlide();
+
+      });
+
+    }
+
+
+    if (prevBtn) {
+
+      prevBtn.addEventListener("click", event => {
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        previousSlide();
+
+      });
+
+    }
+
+
+    /* =======================================================
+       DOT NAVIGATION
+    ======================================================= */
+
+    dots.forEach((dot, index) => {
+
+      dot.addEventListener("click", event => {
+
+        event.preventDefault();
+
+        currentIndex = index;
+
+        updateCarousel();
+
+      });
+
+    });
+
+
+    /* =======================================================
+       TOUCH SWIPE
+    ======================================================= */
+
+    track.addEventListener(
+      "touchstart",
+      event => {
+
+        if (!event.touches.length) {
+          return;
+        }
+
+        startX =
+          event.touches[0].clientX;
+
+        currentX = startX;
+
+        startTime = Date.now();
+
+        isDragging = true;
+
+        track.style.transition = "none";
+
+      },
+      {
+        passive: true
+      }
+    );
+
+
+    track.addEventListener(
+      "touchmove",
+      event => {
+
+        if (!isDragging || !event.touches.length) {
+          return;
+        }
+
+        currentX =
+          event.touches[0].clientX;
+
+        const difference =
+          currentX - startX;
+
+        const slideWidth =
+          getSlideWidth();
+
+        if (!slideWidth) {
+          return;
+        }
+
+        const baseOffset =
+          -(currentIndex * slideWidth);
+
+        /*
+          Follow the finger while dragging.
+        */
+
+        track.style.transform =
+          `translate3d(${baseOffset + difference}px, 0, 0)`;
+
+      },
+      {
+        passive: true
+      }
+    );
+
+
+    track.addEventListener(
+      "touchend",
+      () => {
+
+        if (!isDragging) {
+          return;
+        }
+
+        isDragging = false;
+
+        const difference =
+          currentX - startX;
+
+        const elapsed =
+          Date.now() - startTime;
+
+        const velocity =
+          Math.abs(difference) /
+          Math.max(elapsed, 1);
+
+        /*
+          Normal swipe:
+          50px minimum.
+
+          Fast swipe:
+          smaller distance accepted.
+        */
+
+        const swipeThreshold =
+          velocity > 0.5
+            ? 25
+            : 50;
+
+
+        if (Math.abs(difference) > swipeThreshold) {
+
+          if (difference < 0) {
+
+            nextSlide();
+
+          } else {
+
+            previousSlide();
+
+          }
+
+        } else {
+
+          updateCarousel();
+
+        }
+
+      }
+    );
+
+
+    /* =======================================================
+       MOUSE DRAG
+       Useful for desktop.
+    ======================================================= */
+
+    track.addEventListener(
+      "mousedown",
+      event => {
+
+        if (event.button !== 0) {
+          return;
+        }
+
+        isDragging = true;
+
+        startX =
+          event.clientX;
+
+        currentX =
+          startX;
+
+        startTime =
+          Date.now();
+
+        track.style.transition = "none";
+
+        track.classList.add("dragging");
+
+      }
+    );
+
+
+    window.addEventListener(
+      "mousemove",
+      event => {
+
+        if (!isDragging) {
+          return;
+        }
+
+        currentX =
+          event.clientX;
+
+        const difference =
+          currentX - startX;
+
+        const slideWidth =
+          getSlideWidth();
+
+        if (!slideWidth) {
+          return;
+        }
+
+        const baseOffset =
+          -(currentIndex * slideWidth);
+
+        track.style.transform =
+          `translate3d(${baseOffset + difference}px, 0, 0)`;
+
+      }
+    );
+
+
+    window.addEventListener(
+      "mouseup",
+      () => {
+
+        if (!isDragging) {
+          return;
+        }
+
+        isDragging = false;
+
+        track.classList.remove("dragging");
+
+        const difference =
+          currentX - startX;
+
+        const elapsed =
+          Date.now() - startTime;
+
+        const velocity =
+          Math.abs(difference) /
+          Math.max(elapsed, 1);
+
+        const swipeThreshold =
+          velocity > 0.5
+            ? 25
+            : 60;
+
+
+        if (Math.abs(difference) > swipeThreshold) {
+
+          if (difference < 0) {
+
+            nextSlide();
+
+          } else {
+
+            previousSlide();
+
+          }
+
+        } else {
+
+          updateCarousel();
+
+        }
+
+      }
+    );
+
+
+    /* =======================================================
+       PREVENT IMAGE DRAGGING
+    ======================================================= */
+
+    const images =
+      section.querySelectorAll(".carousel-card img");
+
+    images.forEach(img => {
+
+      img.setAttribute(
+        "draggable",
+        "false"
+      );
+
+      img.addEventListener(
+        "dragstart",
+        event => {
+          event.preventDefault();
+        }
+      );
+
+    });
+
+
+    /* =======================================================
+       RESIZE
+    ======================================================= */
+
+    let resizeTimer;
+
+    window.addEventListener("resize", () => {
+
+      clearTimeout(resizeTimer);
+
+      resizeTimer =
+        setTimeout(() => {
+
+          updateCarousel(false);
+
+        }, 120);
+
+    });
+
+
+    /* =======================================================
+       INITIALIZE
+    ======================================================= */
+
+    updateCarousel(false);
+
+  });
+
+
+  /* =========================================================
+     7. MAGNETIC BUTTON
+  ========================================================= */
+
+  const magneticButtons =
+    document.querySelectorAll(".magnetic");
+
+
+  magneticButtons.forEach(button => {
+
+    button.addEventListener("mousemove", event => {
+
+      if (!window.matchMedia("(pointer:fine)").matches) {
+        return;
+      }
+
+      const rect =
+        button.getBoundingClientRect();
+
+      const x =
+        event.clientX -
+        rect.left -
+        rect.width / 2;
+
+      const y =
+        event.clientY -
+        rect.top -
+        rect.height / 2;
+
+      button.style.transform =
+        `translate(${x * 0.15}px, ${y * 0.15}px)`;
+
+    });
+
+
+    button.addEventListener("mouseleave", () => {
+
+      button.style.transform = "";
+
+    });
+
+  });
+
+
+  /* =========================================================
+     8. REVEAL ANIMATIONS
+  ========================================================= */
+
+  const revealElements =
+    document.querySelectorAll(
+      ".reveal, .style-section, .future-section"
+    );
+
+
+  if ("IntersectionObserver" in window) {
+
+    const revealObserver =
+      new IntersectionObserver(
+        entries => {
+
+          entries.forEach(entry => {
+
+            if (entry.isIntersecting) {
+
+              entry.target.classList.add("show");
+
+            }
+
+          });
+
+        },
+        {
+          threshold: 0.12
+        }
+      );
+
+
+    revealElements.forEach(element => {
+
+      revealObserver.observe(element);
+
+    });
+
+  } else {
+
+    revealElements.forEach(element => {
+
+      element.classList.add("show");
+
+    });
+
+  }
+
+
+  /* =========================================================
+     9. VIDEO CARD HOVER CLASS
+  ========================================================= */
+
+  const cards =
+    document.querySelectorAll(
+      ".cinematic-video, .mini-video, .video-card, .feature-video"
+    );
+
+
+  cards.forEach(card => {
+
+    card.addEventListener("mouseenter", () => {
+
+      card.classList.add("is-hovered");
+
+    });
+
+
+    card.addEventListener("mouseleave", () => {
+
+      card.classList.remove("is-hovered");
+
+    });
+
+  });
+
+
+  /* =========================================================
+     10. PAGE EXIT
+  ========================================================= */
+
+  window.addEventListener("beforeunload", () => {
+
+    portfolioVideos.forEach(video => {
+
       video.pause();
       video.muted = true;
+
     });
-    heroVideos.forEach(video => video.pause());
-  }, { passive: true });
+
+  });
 
 });
