@@ -1921,3 +1921,30 @@ video {
     transition-duration: .01ms !important;
   }
 }
+
+/* =====================================================
+   VIDEO PERFORMANCE — NO DESIGN CHANGE
+===================================================== */
+.video-card,
+.character-card,
+.hero-bg {
+  contain: layout paint;
+}
+
+.video-card video,
+.character-media video,
+.bg-video {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.carousel-track {
+  will-change: transform;
+  touch-action: pan-y;
+}
+
+.carousel-track img {
+  user-select: none;
+  -webkit-user-drag: none;
+}
