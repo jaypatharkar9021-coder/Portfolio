@@ -28,7 +28,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         function animateCursor() {
-
             cursorX += (mouseX - cursorX) * 0.15;
             cursorY += (mouseY - cursorY) * 0.15;
 
@@ -43,18 +42,47 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     /* =====================================================
-       2. HERO BACKGROUND VIDEOS
+       2. VIDEO LOADING HELPER
+    ===================================================== */
+
+    function ensureVideoLoaded(video) {
+
+        if (!video) return false;
+
+        const dataSrc = video.getAttribute("data-src");
+
+        if (!video.getAttribute("src") && dataSrc) {
+            video.setAttribute("src", dataSrc);
+            video.load();
+        }
+
+        return !!video.getAttribute("src");
+    }
+
+
+    /* =====================================================
+       3. HERO BACKGROUND VIDEOS
     ===================================================== */
 
     const heroVideos =
         document.querySelectorAll(".bg-video");
 
-    const heroSections = document.querySelectorAll(
-        "[data-bg]"
-    );
+    const heroSections =
+        document.querySelectorAll("[data-bg]");
 
     let activeHeroVideo =
         document.querySelector(".bg-video.active");
+
+
+    /* Load first hero video */
+    if (activeHeroVideo) {
+        ensureVideoLoaded(activeHeroVideo);
+
+        activeHeroVideo.muted = true;
+        activeHeroVideo.playsInline = true;
+        activeHeroVideo.setAttribute("playsinline", "");
+    }
+
 
     /* Pause all non-active hero videos */
 
@@ -62,6 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         video.muted = true;
         video.playsInline = true;
+        video.setAttribute("playsinline", "");
 
         if (!video.classList.contains("active")) {
             video.pause();
@@ -81,25 +110,40 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+
+        /* Load only when required */
+
+        ensureVideoLoaded(target);
+
+
+        /* Pause all other hero videos */
+
         heroVideos.forEach((video) => {
 
             if (video !== target) {
+
                 video.pause();
                 video.classList.remove("active");
+
             }
 
         });
 
+
         target.classList.add("active");
+
         activeHeroVideo = target;
 
         target.muted = true;
+        target.playsInline = true;
+
 
         const playPromise = target.play();
 
         if (playPromise !== undefined) {
             playPromise.catch(() => {});
         }
+
     }
 
 
@@ -124,6 +168,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (activeHeroVideo) {
 
+        ensureVideoLoaded(activeHeroVideo);
+
         activeHeroVideo.muted = true;
 
         activeHeroVideo
@@ -134,7 +180,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     /* =====================================================
-       3. PORTFOLIO VIDEOS
+       4. PORTFOLIO VIDEOS
        SMOOTH PLAYBACK
     ===================================================== */
 
@@ -154,12 +200,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 video.pause();
 
-                /* Do NOT reset currentTime.
-                   This prevents unnecessary decoding. */
+                /*
+                 * Don't reset currentTime.
+                 * This avoids unnecessary seeking/decoding.
+                 */
 
             }
 
         });
+
     }
 
 
@@ -167,13 +216,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!video) return;
 
+
+        /* Make sure data-src becomes src */
+
+        if (!ensureVideoLoaded(video)) {
+            return;
+        }
+
+
         stopOtherVideos(video);
 
         activePortfolioVideo = video;
 
         video.playsInline = true;
+        video.setAttribute("playsinline", "");
 
-        /* Start muted first for browser compatibility */
+        /*
+         * Start muted.
+         * Browser autoplay rules are easier this way.
+         */
 
         if (video.paused) {
 
@@ -182,6 +243,10 @@ document.addEventListener("DOMContentLoaded", () => {
             if (promise !== undefined) {
 
                 promise.catch(() => {
+
+                    /*
+                     * Retry muted if browser blocks playback.
+                     */
 
                     video.muted = true;
 
@@ -192,6 +257,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
 
         }
+
     }
 
 
@@ -204,11 +270,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (activePortfolioVideo === video) {
             activePortfolioVideo = null;
         }
+
     }
 
 
     /* =====================================================
-       4. DESKTOP HOVER
+       5. DESKTOP HOVER PLAY
     ===================================================== */
 
     portfolioVideos.forEach((video) => {
@@ -223,7 +290,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         card.addEventListener("mouseenter", () => {
 
-            if (window.matchMedia("(hover: hover)").matches) {
+            if (
+                window.matchMedia("(hover: hover)").matches
+            ) {
 
                 playPortfolioVideo(video);
 
@@ -234,7 +303,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         card.addEventListener("mouseleave", () => {
 
-            if (window.matchMedia("(hover: hover)").matches) {
+            if (
+                window.matchMedia("(hover: hover)").matches
+            ) {
 
                 pausePortfolioVideo(video);
 
@@ -246,11 +317,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     /* =====================================================
-       5. PLAY / PAUSE BUTTONS
+       6. PLAY / PAUSE BUTTONS
     ===================================================== */
 
     const playButtons =
         document.querySelectorAll(".play-btn");
+
 
     playButtons.forEach((button) => {
 
@@ -259,6 +331,7 @@ document.addEventListener("DOMContentLoaded", () => {
             e.preventDefault();
             e.stopPropagation();
 
+
             const card =
                 button.closest(
                     ".video-card, .character-card"
@@ -266,10 +339,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (!card) return;
 
+
             const video =
                 card.querySelector("video");
 
             if (!video) return;
+
 
             if (video.paused) {
 
@@ -287,11 +362,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     /* =====================================================
-       6. SOUND BUTTON
+       7. SOUND BUTTON
     ===================================================== */
 
     const soundButtons =
         document.querySelectorAll(".sound-btn");
+
 
     soundButtons.forEach((button) => {
 
@@ -300,6 +376,7 @@ document.addEventListener("DOMContentLoaded", () => {
             e.preventDefault();
             e.stopPropagation();
 
+
             const card =
                 button.closest(
                     ".video-card, .character-card"
@@ -307,19 +384,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (!card) return;
 
+
             const video =
                 card.querySelector("video");
 
             if (!video) return;
 
+
+            /*
+             * Load video first if needed.
+             */
+
+            ensureVideoLoaded(video);
+
+
             video.muted = !video.muted;
+
 
             button.classList.toggle(
                 "muted",
                 video.muted
             );
 
-            /* Make sure video is playing */
+
+            /*
+             * Change icon.
+             */
+
+            button.textContent =
+                video.muted ? "🔇" : "🔊";
+
+
+            /*
+             * Make sure video is playing.
+             */
 
             if (video.paused) {
                 playPortfolioVideo(video);
@@ -331,7 +429,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     /* =====================================================
-       7. MOBILE VIDEO TAP
+       8. MOBILE VIDEO TAP
     ===================================================== */
 
     portfolioVideos.forEach((video) => {
@@ -349,6 +447,12 @@ document.addEventListener("DOMContentLoaded", () => {
             if (e.target.closest("button")) {
                 return;
             }
+
+
+            /*
+             * On touch devices:
+             * tap = play / pause
+             */
 
             if (
                 !window.matchMedia(
@@ -374,50 +478,80 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     /* =====================================================
-       8. LOAD VIDEOS ONLY NEAR VIEWPORT
+       9. LOAD VIDEOS NEAR VIEWPORT
     ===================================================== */
 
-    const videoObserver =
-        new IntersectionObserver(
-            (entries) => {
+    if ("IntersectionObserver" in window) {
 
-                entries.forEach((entry) => {
+        const videoObserver =
+            new IntersectionObserver(
+                (entries) => {
 
-                    const video = entry.target;
+                    entries.forEach((entry) => {
 
-                    if (!entry.isIntersecting) {
+                        const video = entry.target;
 
-                        video.pause();
 
-                        if (
-                            activePortfolioVideo === video
-                        ) {
-                            activePortfolioVideo = null;
+                        if (entry.isIntersecting) {
+
+                            /*
+                             * Load video only when close
+                             * to the viewport.
+                             */
+
+                            ensureVideoLoaded(video);
+
+                        } else {
+
+                            /*
+                             * Pause when far out of view.
+                             */
+
+                            video.pause();
+
+                            if (
+                                activePortfolioVideo === video
+                            ) {
+                                activePortfolioVideo = null;
+                            }
+
                         }
 
-                    }
+                    });
 
-                });
-
-            },
-            {
-                rootMargin: "250px 0px",
-                threshold: 0.05
-            }
-        );
+                },
+                {
+                    rootMargin: "500px 0px",
+                    threshold: 0.05
+                }
+            );
 
 
-    portfolioVideos.forEach((video) => {
+        portfolioVideos.forEach((video) => {
 
-        video.preload = "metadata";
+            video.preload = "metadata";
+            video.playsInline = true;
+            video.setAttribute("playsinline", "");
 
-        videoObserver.observe(video);
+            videoObserver.observe(video);
 
-    });
+        });
+
+    } else {
+
+        /*
+         * Fallback for older browsers.
+         */
+
+        portfolioVideos.forEach((video) => {
+            ensureVideoLoaded(video);
+        });
+
+    }
 
 
     /* =====================================================
-       9. PAUSE VIDEOS WHEN TAB IS HIDDEN
+       10. PAUSE VIDEOS WHEN TAB IS HIDDEN
     ===================================================== */
 
     document.addEventListener(
@@ -432,19 +566,25 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 );
 
+
                 heroVideos.forEach(
                     (video) => {
                         video.pause();
                     }
                 );
 
+
                 activePortfolioVideo = null;
 
             } else {
 
-                /* Restart active hero video */
+                /*
+                 * Restart active hero video.
+                 */
 
                 if (activeHeroVideo) {
+
+                    ensureVideoLoaded(activeHeroVideo);
 
                     activeHeroVideo
                         .play()
@@ -459,7 +599,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     /* =====================================================
-       10. CAROUSELS
+       11. CAROUSELS
     ===================================================== */
 
     const carouselCards =
@@ -475,6 +615,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ".carousel-track"
             );
 
+
         const slides =
             Array.from(
                 card.querySelectorAll(
@@ -482,15 +623,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 )
             );
 
+
         const prevBtn =
             card.querySelector(
                 ".carousel-prev"
             );
 
+
         const nextBtn =
             card.querySelector(
                 ".carousel-next"
             );
+
 
         const dotsContainer =
             card.querySelector(
@@ -512,13 +656,14 @@ document.addEventListener("DOMContentLoaded", () => {
         let endX = 0;
 
 
-        /* -------------------------
+        /* =================================================
            CREATE DOTS
-        ------------------------- */
+        ================================================= */
 
         if (dotsContainer) {
 
             dotsContainer.innerHTML = "";
+
 
             slides.forEach((_, index) => {
 
@@ -527,21 +672,27 @@ document.addEventListener("DOMContentLoaded", () => {
                         "button"
                     );
 
+
                 dot.type = "button";
 
                 dot.className =
                     "carousel-dot";
 
+
                 if (index === 0) {
+
                     dot.classList.add(
                         "active"
                     );
+
                 }
+
 
                 dot.setAttribute(
                     "aria-label",
                     `Go to slide ${index + 1}`
                 );
+
 
                 dot.addEventListener(
                     "click",
@@ -555,6 +706,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 );
 
+
                 dotsContainer.appendChild(dot);
 
             });
@@ -562,18 +714,20 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
 
-        /* -------------------------
+        /* =================================================
            UPDATE DOTS
-        ------------------------- */
+        ================================================= */
 
         function updateDots() {
 
             if (!dotsContainer) return;
 
+
             const dots =
                 dotsContainer.querySelectorAll(
                     ".carousel-dot"
                 );
+
 
             dots.forEach((dot, index) => {
 
@@ -587,9 +741,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
 
-        /* -------------------------
+        /* =================================================
            MOVE SLIDE
-        ------------------------- */
+        ================================================= */
 
         function goToSlide(index) {
 
@@ -597,17 +751,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 (index + slides.length) %
                 slides.length;
 
+
             track.style.transform =
                 `translate3d(-${currentIndex * 100}%, 0, 0)`;
+
 
             updateDots();
 
         }
 
 
-        /* -------------------------
+        /* =================================================
            NEXT
-        ------------------------- */
+        ================================================= */
 
         if (nextBtn) {
 
@@ -617,6 +773,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     e.preventDefault();
                     e.stopPropagation();
+
 
                     goToSlide(
                         currentIndex + 1
@@ -628,9 +785,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
 
-        /* -------------------------
+        /* =================================================
            PREVIOUS
-        ------------------------- */
+        ================================================= */
 
         if (prevBtn) {
 
@@ -640,6 +797,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                     e.preventDefault();
                     e.stopPropagation();
+
 
                     goToSlide(
                         currentIndex - 1
@@ -651,9 +809,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
 
-        /* -------------------------
+        /* =================================================
            MOBILE SWIPE
-        ------------------------- */
+        ================================================= */
 
         card.addEventListener(
             "touchstart",
@@ -664,6 +822,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ) {
                     return;
                 }
+
 
                 startX =
                     e.touches[0].clientX;
@@ -681,8 +840,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 if (!startX) return;
 
+
                 endX =
                     e.changedTouches[0].clientX;
+
 
                 const difference =
                     startX - endX;
@@ -713,13 +874,14 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
 
-        /* -------------------------
+        /* =================================================
            PREVENT IMAGE DRAG
-        ------------------------- */
+        ================================================= */
 
         slides.forEach((img) => {
 
             img.draggable = false;
+
 
             img.addEventListener(
                 "dragstart",
@@ -739,7 +901,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     /* =====================================================
-       11. MAGNETIC BUTTONS
+       12. MAGNETIC BUTTONS
     ===================================================== */
 
     const magneticButtons =
@@ -766,10 +928,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 const rect =
                     button.getBoundingClientRect();
 
+
                 const x =
                     e.clientX -
                     rect.left -
                     rect.width / 2;
+
 
                 const y =
                     e.clientY -
@@ -798,7 +962,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     /* =====================================================
-       12. REVEAL ANIMATIONS
+       13. REVEAL ANIMATIONS
     ===================================================== */
 
     const revealElements =
@@ -807,7 +971,9 @@ document.addEventListener("DOMContentLoaded", () => {
         );
 
 
-    if ("IntersectionObserver" in window) {
+    if (
+        "IntersectionObserver" in window
+    ) {
 
         const revealObserver =
             new IntersectionObserver(
@@ -823,6 +989,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 entry.target.classList.add(
                                     "visible"
                                 );
+
 
                                 observer.unobserve(
                                     entry.target
@@ -866,7 +1033,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     /* =====================================================
-       13. VIDEO HOVER CARD STATE
+       14. VIDEO HOVER CARD STATE
     ===================================================== */
 
     portfolioVideos.forEach((video) => {
@@ -906,7 +1073,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     /* =====================================================
-       14. REDUCE MOTION SUPPORT
+       15. REDUCE MOTION SUPPORT
     ===================================================== */
 
     const prefersReducedMotion =
@@ -924,17 +1091,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     /* =====================================================
-       15. FINAL VIDEO SETUP
+       16. FINAL VIDEO SETUP
     ===================================================== */
 
     portfolioVideos.forEach((video) => {
 
         video.preload = "metadata";
+
         video.playsInline = true;
 
+        video.setAttribute(
+            "playsinline",
+            ""
+        );
+
+
         /*
-         * Do not autoplay portfolio videos.
-         * They only play when the user interacts.
+         * Don't autoplay portfolio videos.
+         * They play only when interacted with.
          */
 
         video.autoplay = false;
